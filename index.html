@@ -48,6 +48,29 @@
             padding-bottom: 10px;
         }
 
+        .heading-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            height: 28px;
+            padding: 0 10px;
+            border: 2px solid #30b4a0;
+            color: #30e6c6;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 700;
+            background: rgba(10, 22, 43, 0.65);
+            box-shadow: inset 0 0 0 1px rgba(48, 182, 160, 0.25);
+        }
+
         .input-group {
             margin-bottom: 20px;
         }
@@ -244,7 +267,11 @@
     <div class="container">
         <!-- Number Extractor Tool -->
         <div class="tool-box">
-            <h2>Corepay Number Extractor Tool</h2>
+            <div class="heading-row">
+                <h2 style="margin-bottom:0;border-bottom:none;padding-bottom:0;">Corepay Number Extractor Tool</h2>
+                <span class="count-badge" id="mainCountBadge">0</span>
+            </div>
+            <div style="height:10px;border-bottom:3px solid #2a5298;margin-bottom:25px;"></div>
             <div class="input-group">
                 <label>Paste SIM Data:</label>
                 <textarea id="simData" rows="6" placeholder="Paste your data here..."></textarea>
@@ -274,7 +301,11 @@
 
         <!-- Serial Number Extractor Section -->
         <div class="tool-box" style="margin-top: 28px;">
-            <h2>Serial Number Filtered Extractor</h2>
+            <div class="heading-row">
+                <h2 style="margin-bottom:0;border-bottom:none;padding-bottom:0;">Serial Number Filtered Extractor</h2>
+                <span class="count-badge" id="serialCountBadge">0</span>
+            </div>
+            <div style="height:10px;border-bottom:3px solid #2a5298;margin-bottom:25px;"></div>
             <div style="margin-bottom:14px;">
                 <label for="serialPatternInput"><b>Type your serial</b></label>
                 <input id="serialPatternInput" type="text" value="4792" maxlength="10" placeholder="Type start of serial..." style="width: 170px; margin-left:8px; padding:7px 10px; border-radius:7px; border:1.5px solid #bcd; font-size: 15px; font-family: 'Poppins', sans-serif;" />
@@ -313,10 +344,12 @@
         function extractNumbers() {
             const inputData = document.getElementById('simData').value.trim();
             const resultBox = document.getElementById('numberResult');
+            const mainBadge = document.getElementById('mainCountBadge');
             
             if (!inputData) {
                 resultBox.textContent = "❌ Please paste your data first!";
                 resultBox.className = 'result-box error-message';
+                if (mainBadge) mainBadge.textContent = '0';
                 return;
             }
 
@@ -329,6 +362,7 @@
             if (uniqueNumbers.length === 0) {
                 resultBox.textContent = "❌ No valid phone numbers found in the data!";
                 resultBox.className = 'result-box error-message';
+                if (mainBadge) mainBadge.textContent = '0';
                 return;
             }
             
@@ -343,6 +377,7 @@
             
             resultBox.textContent = output;
             resultBox.className = 'result-box success-message';
+            if (mainBadge) mainBadge.textContent = String(uniqueNumbers.length);
             
             // Show success message
             setTimeout(() => {
@@ -424,6 +459,8 @@
             const resultBox = document.getElementById('numberResult');
             resultBox.textContent = '';
             resultBox.className = 'result-box';
+            const mainBadge = document.getElementById('mainCountBadge');
+            if (mainBadge) mainBadge.textContent = '0';
         }
 
         let lastExtractedNumbers = [];
@@ -438,11 +475,13 @@
             const file = this.files && this.files[0];
             const resultBox = document.getElementById('numberResult');
             const downloadBtn = document.getElementById('downloadTxtBtn');
+            const mainBadge = document.getElementById('mainCountBadge');
             downloadBtn.disabled = true;
             lastExtractedNumbers = [];
 				if (!file) {
                 resultBox.textContent = '❌ No file selected!';
                 resultBox.className = 'result-box error-message';
+                if (mainBadge) mainBadge.textContent = '0';
                 return;
             }
             let numbers = [];
@@ -485,12 +524,14 @@
             if (uniqueNumbers.length === 0) {
                 resultBox.textContent = '❌ No valid numbers (10+ digits) found in file!';
                 resultBox.className = 'result-box error-message';
+                if (mainBadge) mainBadge.textContent = '0';
                 return;
             }
             resultBox.textContent = uniqueNumbers.join('\n');
             resultBox.className = 'result-box success-message';
             lastExtractedNumbers = uniqueNumbers;
             downloadBtn.disabled = false;
+            if (mainBadge) mainBadge.textContent = String(uniqueNumbers.length);
         });
 
         // Download TXT logic
@@ -511,12 +552,14 @@
             const mainNumsRaw = document.getElementById('numberResult').textContent.trim();
             const serialPattern = document.getElementById('serialPatternInput').value.trim();
             const resultBox = document.getElementById('serialNumberResult');
+            const serialBadge = document.getElementById('serialCountBadge');
             let numbers = mainNumsRaw.split(/\s+/).filter(v => /^\d{7,}$/.test(v));
             if (!mainNumsRaw || numbers.length === 0) {
                 resultBox.textContent = '❌ No source numbers found! Upload/paste in the top box first.';
                 resultBox.className = 'result-box error-message';
                 lastSerialNumbers = [];
                 document.getElementById('serialSerialDownloadBtn').disabled = true;
+                if (serialBadge) serialBadge.textContent = '0';
                 return;
             }
             let filteredNumbers = numbers;
@@ -527,12 +570,14 @@
                 resultBox.className = 'result-box error-message';
                 lastSerialNumbers = [];
                 document.getElementById('serialSerialDownloadBtn').disabled = true;
+                if (serialBadge) serialBadge.textContent = '0';
                 return;
             }
             resultBox.textContent = filteredNumbers.join('\n');
             resultBox.className = 'result-box success-message';
             lastSerialNumbers = filteredNumbers;
             document.getElementById('serialSerialDownloadBtn').disabled = false;
+            if (serialBadge) serialBadge.textContent = String(filteredNumbers.length);
         };
         // Download TXT for serial section
         document.getElementById('serialSerialDownloadBtn').onclick = function() {
@@ -571,6 +616,8 @@
             document.getElementById('serialNumberResult').className = 'result-box';
             lastSerialNumbers = [];
             document.getElementById('serialSerialDownloadBtn').disabled = true;
+            const serialBadge = document.getElementById('serialCountBadge');
+            if (serialBadge) serialBadge.textContent = '0';
         };
     </script>
 </body>
