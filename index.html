@@ -269,7 +269,7 @@
         <div id="file-extract-row" style="display:flex; gap:10px; align-items:center; margin-top:25px; margin-bottom:16px;">
             <button id="fileExtractBtn" style="flex:1;min-width:140px;">Upload File & Extract</button>
             <button id="downloadTxtBtn" style="flex:1;min-width:140px;" disabled>Download TXT</button>
-            <input type="file" id="fileInput" accept=".xlsx, .pdf" style="display:none;"/>
+			<input type="file" id="fileInput" accept=".txt, .xlsx, .pdf" style="display:none;"/>
         </div>
 
         <!-- Serial Number Extractor Section -->
@@ -440,14 +440,14 @@
             const downloadBtn = document.getElementById('downloadTxtBtn');
             downloadBtn.disabled = true;
             lastExtractedNumbers = [];
-            if (!file) {
+				if (!file) {
                 resultBox.textContent = '❌ No file selected!';
                 resultBox.className = 'result-box error-message';
                 return;
             }
             let numbers = [];
             try {
-                if (file.name.endsWith('.xlsx')) {
+					if (file.name.endsWith('.xlsx')) {
                     const data = await file.arrayBuffer();
                     const wb = XLSX.read(data, {type: 'array'});
                     let txt = '';
@@ -457,7 +457,7 @@
                         txt += vals.flat().join('\n') + '\n';
                     });
                     numbers = txt.match(/\d{10,}/g) || [];
-                } else if (file.name.endsWith('.pdf')) {
+					} else if (file.name.endsWith('.pdf')) {
                     const arrayBuffer = await file.arrayBuffer();
                     const loadingTask = window['pdfjsLib'].getDocument({data: arrayBuffer});
                     const pdf = await loadingTask.promise;
@@ -468,8 +468,11 @@
                         txt += content.items.map(item => item.str).join(' ') + '\n';
                     }
                     numbers = txt.match(/\d{10,}/g) || [];
+					} else if (file.name.endsWith('.txt')) {
+						const txt = await file.text();
+						numbers = txt.match(/\d{10,}/g) || [];
                 } else {
-                    resultBox.textContent = '❌ Only .xlsx and .pdf files are supported!';
+						resultBox.textContent = '❌ Only .txt, .xlsx and .pdf files are supported!';
                     resultBox.className = 'result-box error-message';
                     return;
                 }
