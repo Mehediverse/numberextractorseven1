@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -263,6 +264,32 @@
             <div class="result-box" id="numberResult"></div>
             <button class="copy-btn" onclick="copyResult('numberResult')">Copy Numbers</button>
         </div>
+
+        <!-- Simple File Extractor Section - Only Two Buttons -->
+        <div id="file-extract-row" style="display:flex; gap:10px; align-items:center; margin-top:25px; margin-bottom:16px;">
+            <button id="fileExtractBtn" style="flex:1;min-width:140px;">Upload File & Extract</button>
+            <button id="downloadTxtBtn" style="flex:1;min-width:140px;" disabled>Download TXT</button>
+            <input type="file" id="fileInput" accept=".xlsx, .pdf" style="display:none;"/>
+        </div>
+
+        <!-- Serial Number Extractor Section -->
+        <div class="tool-box" style="margin-top: 28px;">
+            <h2>Serial Number Filtered Extractor</h2>
+            <div style="margin-bottom:14px;">
+                <label for="serialPatternInput"><b>Type your serial</b></label>
+                <input id="serialPatternInput" type="text" value="4792" maxlength="10" placeholder="Type start of serial..." style="width: 170px; margin-left:8px; padding:7px 10px; border-radius:7px; border:1.5px solid #bcd; font-size: 15px; font-family: 'Poppins', sans-serif;" />
+            </div>
+            <!-- SERIAL EXTRACTOR BUTTONS ROW: Only Extract button now -->
+            <div id="serial-file-extract-row" style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+                <button id="serialExtractBtn" style="flex:1;min-width:110px;">Extract</button>
+                <button id="serialSerialDownloadBtn" style="flex:1;min-width:110px;" disabled>Download TXT</button>
+            </div>
+            <div class="result-box" id="serialNumberResult"></div>
+            <div class="button-group" style="margin-bottom:8px;margin-top:0;">
+                <button class="copy-btn" id="serialCopyBtn">Copy Numbers</button>
+                <button class="clear-btn" id="serialClearBtn">Clear</button>
+            </div>
+        </div>
     </div>
 
     <div class="credits">
@@ -270,6 +297,17 @@
         Telegram: <a href="https://t.me/TGQuantumXRobot" target="_blank">@TGQuantumXRobot</a>
     </div>
 
+    <!-- JS Libraries for XLSX and PDF Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Ensure pdfjsLib is present for PDF parsing
+        window.pdfjsLib = window.pdfjsLib || window['pdfjs-dist/build/pdf'] || window['pdfjsLib'];
+        if(window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
     <script>
         // Number Extractor
         function extractNumbers() {
@@ -387,6 +425,150 @@
             resultBox.textContent = '';
             resultBox.className = 'result-box';
         }
+
+        let lastExtractedNumbers = [];
+
+        // Upload & Extract (open file dialog & process in one step)
+        document.getElementById('fileExtractBtn').onclick = function() {
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileInput').click();
+        };
+
+        document.getElementById('fileInput').addEventListener('change', async function() {
+            const file = this.files && this.files[0];
+            const resultBox = document.getElementById('numberResult');
+            const downloadBtn = document.getElementById('downloadTxtBtn');
+            downloadBtn.disabled = true;
+            lastExtractedNumbers = [];
+            if (!file) {
+                resultBox.textContent = '❌ No file selected!';
+                resultBox.className = 'result-box error-message';
+                return;
+            }
+            let numbers = [];
+            try {
+                if (file.name.endsWith('.xlsx')) {
+                    const data = await file.arrayBuffer();
+                    const wb = XLSX.read(data, {type: 'array'});
+                    let txt = '';
+                    wb.SheetNames.forEach(name => {
+                        const ws = wb.Sheets[name];
+                        const vals = XLSX.utils.sheet_to_json(ws, {header:1, blankrows:false});
+                        txt += vals.flat().join('\n') + '\n';
+                    });
+                    numbers = txt.match(/\d{10,}/g) || [];
+                } else if (file.name.endsWith('.pdf')) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const loadingTask = window['pdfjsLib'].getDocument({data: arrayBuffer});
+                    const pdf = await loadingTask.promise;
+                    let txt = '';
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        txt += content.items.map(item => item.str).join(' ') + '\n';
+                    }
+                    numbers = txt.match(/\d{10,}/g) || [];
+                } else {
+                    resultBox.textContent = '❌ Only .xlsx and .pdf files are supported!';
+                    resultBox.className = 'result-box error-message';
+                    return;
+                }
+            } catch(error) {
+                resultBox.textContent = '❌ Error reading file: ' + error.message;
+                resultBox.className = 'result-box error-message';
+                return;
+            }
+            const uniqueNumbers = [...new Set(numbers)];
+            if (uniqueNumbers.length === 0) {
+                resultBox.textContent = '❌ No valid numbers (10+ digits) found in file!';
+                resultBox.className = 'result-box error-message';
+                return;
+            }
+            resultBox.textContent = uniqueNumbers.join('\n');
+            resultBox.className = 'result-box success-message';
+            lastExtractedNumbers = uniqueNumbers;
+            downloadBtn.disabled = false;
+        });
+
+        // Download TXT logic
+        document.getElementById('downloadTxtBtn').onclick = function() {
+            if (!lastExtractedNumbers || lastExtractedNumbers.length === 0) return;
+            const blob = new Blob([lastExtractedNumbers.join('\n')], {type:'text/plain'});
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'numbers.txt';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        let lastSerialNumbers = [];
+        // Serial Extract: filter numbers from main extractor box
+        document.getElementById('serialExtractBtn').onclick = function() {
+            const mainNumsRaw = document.getElementById('numberResult').textContent.trim();
+            const serialPattern = document.getElementById('serialPatternInput').value.trim();
+            const resultBox = document.getElementById('serialNumberResult');
+            let numbers = mainNumsRaw.split(/\s+/).filter(v => /^\d{7,}$/.test(v));
+            if (!mainNumsRaw || numbers.length === 0) {
+                resultBox.textContent = '❌ No source numbers found! Upload/paste in the top box first.';
+                resultBox.className = 'result-box error-message';
+                lastSerialNumbers = [];
+                document.getElementById('serialSerialDownloadBtn').disabled = true;
+                return;
+            }
+            let filteredNumbers = numbers;
+            if (serialPattern) filteredNumbers = numbers.filter(num => num.startsWith(serialPattern));
+            filteredNumbers = [...new Set(filteredNumbers)];
+            if (filteredNumbers.length === 0) {
+                resultBox.textContent = `❌ No serial numbers found starting with "${serialPattern}"!`;
+                resultBox.className = 'result-box error-message';
+                lastSerialNumbers = [];
+                document.getElementById('serialSerialDownloadBtn').disabled = true;
+                return;
+            }
+            resultBox.textContent = filteredNumbers.join('\n');
+            resultBox.className = 'result-box success-message';
+            lastSerialNumbers = filteredNumbers;
+            document.getElementById('serialSerialDownloadBtn').disabled = false;
+        };
+        // Download TXT for serial section
+        document.getElementById('serialSerialDownloadBtn').onclick = function() {
+            if (!lastSerialNumbers || lastSerialNumbers.length === 0) return;
+            const blob = new Blob([lastSerialNumbers.join('\n')], {type:'text/plain'});
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'serial_numbers.txt';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+        // Serial section copy and clear keep working
+        document.getElementById('serialCopyBtn').onclick = function() {
+            const resultBox = document.getElementById('serialNumberResult');
+            let resultText = resultBox.textContent;
+            if (!resultText || resultText.includes('❌')) {
+                alert('Nothing to copy!');
+                return;
+            }
+            navigator.clipboard.writeText(resultText).then(() => {
+                const btn = document.getElementById('serialCopyBtn');
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                btn.style.background = '#229954';
+                btn.disabled = true;
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#27ae60';
+                    btn.disabled = false;
+                }, 2000);
+            }).catch(() => { alert('Copy failed!'); });
+        };
+        document.getElementById('serialClearBtn').onclick = function() {
+            document.getElementById('serialNumberResult').textContent = '';
+            document.getElementById('serialNumberResult').className = 'result-box';
+            lastSerialNumbers = [];
+            document.getElementById('serialSerialDownloadBtn').disabled = true;
+        };
     </script>
 </body>
 </html>
